@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 noah
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Ensure Ollama paths exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0750"
+    owner: "{{ ollama_uid }}"
+    group: "{{ ollama_gid }}"
+  with_items:
+    - "{{ ollama_base_path }}"
+    - "{{ ollama_data_path }}"
+
+- name: Ensure Ollama support files installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/{{ item }}.j2"
+    dest: "{{ ollama_base_path }}/{{ item }}"
+    mode: "0640"
+    owner: "{{ ollama_uid }}"
+    group: "{{ ollama_gid }}"
+  with_items:
+    - env
+    - labels
+  register: ollama_support_files_result
+
+- name: Ensure Ollama container image is pulled via community.docker.docker_image_pull
+  when: devture_systemd_docker_base_container_image_pull_method == 'ansible-module'
+  community.docker.docker_image_pull:
+    name: "{{ ollama_container_image }}"
+    pull: always
+  register: ollama_container_image_pull_result_ansible_module
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: ollama_container_image_pull_result_ansible_module is not failed
+
+- name: Ensure Ollama container image is pulled via ansible.builtin.command
+  when: devture_systemd_docker_base_container_image_pull_method == 'command'
+  ansible.builtin.command:
+    cmd: "{{ devture_systemd_docker_base_host_command_docker }} pull {{ ollama_container_image }}"
+  register: ollama_container_image_pull_result_command
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: ollama_container_image_pull_result_command is not failed
+  changed_when: "'Downloaded newer image' in ollama_container_image_pull_result_command.stdout"
+
+- name: Ensure Ollama container network is created via community.docker.docker_network
+  when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+  community.docker.docker_network:
+    enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
+    name: "{{ ollama_container_network }}"
+    driver: bridge
+    driver_options: "{{ devture_systemd_docker_base_container_networks_driver_options }}"
+  register: ollama_network_creation_result
+
+- name: Ensure Ollama container network is created via ansible.builtin.command
+  when: devture_systemd_docker_base_container_network_creation_method == 'command'
+  ansible.builtin.command:
+    cmd: >-
+      {{ devture_systemd_docker_base_host_command_docker }} network create
+      {% if devture_systemd_docker_base_ipv6_enabled %}--ipv6{% endif %}
+      {{ devture_systemd_docker_base_container_networks_driver_options_string }}
+      {{ ollama_container_network }}
+  register: ollama_network_creation_result
+  changed_when: ollama_network_creation_result.rc == 0
+  failed_when: ollama_network_creation_result.rc != 0 and 'already exists' not in ollama_network_creation_result.stderr
+
+- name: Ensure Ollama systemd service is present
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/systemd/ollama.service.j2"
+    dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ ollama_identifier }}.service"
+    mode: "0644"
+  register: ollama_systemd_service_result
+
+- name: Determine whether Ollama needs a restart
+  ansible.builtin.set_fact:
+    ollama_restart_necessary: >-
+      {{
+        ollama_support_files_result.changed | default(false)
+        or ollama_systemd_service_result.changed | default(false)
+        or ollama_container_image_pull_result_ansible_module.changed | default(false)
+        or ollama_container_image_pull_result_command.changed | default(false)
+      }}

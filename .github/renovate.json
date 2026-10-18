@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Patch releases of Ollama are automerged here. Ollama keeps no database: its data directory holds its key pair and the models it has pulled, stored as manifests and content-addressed blobs that can be pulled again from the registry, so a patch bump has no schema to migrate.",
+    "The automerge branch is covered by the Molecule run, which installs the service under a uid override and a read-only container root, pulls a model into the data directory, lists it with the CLI inside the container, runs it through a model runner by embedding sentences, and asserts that the running Ollama reports the version defaults/main.yml pins and was started with the role's environment. It runs on the CPU only, so the GPU backends are not covered.",
+    "ollama_hardware_acceleration: rocm pulls the -rocm flavour of the same version, which versioning=semver on the annotation in defaults/main.yml skips as a prerelease. Ollama publishes it together with the plain tag (0.40.4, 0.40.5 and 0.40.6 were each pushed within seconds of their -rocm tags), so a bump does not reach ROCm users before their image exists."
+  ],
+  "extends": [
+    "github>mother-of-all-self-hosting/renovate-config#v1.1.0",
+    "github>mother-of-all-self-hosting/renovate-config//patch-automerge#v1.1.0"
+  ]
+}

@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 spatterlight
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    force: true
+driver:
+  name: docker
+platforms:
+  - name: ollama-${MOLECULE_DISTRO:-ubuntu2604}-default
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      # Docker inside the instance stores images via containerd. Its storage
+      # cannot use overlay on top of the instance's own overlay filesystem, so a
+      # volume puts it on a real filesystem.
+      - /var/lib/containerd
+    # Remove volumes along with the instance, so that local runs do not leave
+    # gigabytes behind.
+    keep_volumes: false
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+  inventory:
+    group_vars:
+      all:
+        # Helper variables
+        ollama_debug_service_enabled: false
+        ollama_restarts_check_enabled: true
+
+        # The port on the host that Ollama is published on, and which
+        # `verify.yml` sends its API requests to.
+        ollama_molecule_http_bind_port: 11434
+
+        # The model that `verify.yml` pulls and runs. An embedding model this
+        # small keeps the download to a few dozen megabytes, while still taking a
+        # request all the way through a model runner.
+        ollama_molecule_model: all-minilm
+
+        # Deliberately not Ollama's own default (5m), so that finding it in the
+        # configuration Ollama logs on startup proves that the role's environment
+        # file reached the process.
+        ollama_environment_variables_ollama_keep_alive: 7m
+        # How Ollama logs the value above, as a Go duration
+        ollama_molecule_keep_alive_logged: 7m0s
+
+        # Variables for Ollama
+        ollama_uid: 1000
+        ollama_gid: 1000
+        ollama_container_http_host_bind_port: "{{ ollama_molecule_http_bind_port }}"
+        # Deliberately not the image's own default (11434), so that Ollama
+        # answering at all proves that the role passed the port to the process.
+        ollama_container_http_port: 11435
+  env:
+    # Workaround for https://github.com/ansible/molecule/issues/4391
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
+verifier:
+  name: ansible
