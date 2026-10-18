@@ -41,7 +41,7 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       --mount type={{ volume.type | default('bind' if '/' in volume.src else 'volume') }},src={{ volume.src }},dst={{ volume.dst }}{{ (',' + volume.options) if volume.options | default('') else '' }} \
       {% endfor %}
       {% for device in ollama_container_devices %}
-      --device={{ device.src }}:{{ device.dst }}{{ (':' + device.options) if device.options else '' }} \
+      --device={{ device.src }}:{{ device.dst }}{{ (':' + device.options) if device.options | default('') else '' }} \
       {% endfor %}
       {% for gpu in ollama_container_gpus %}
       --gpus={{ gpu }} \
@@ -53,9 +53,13 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       {{ arg }} \
       {% endfor %}
       {{ ollama_container_image }} \
+      {% if ollama_process_extra_arguments %}
+      {# Arguments replace the image's own command instead of extending it, so it is repeated here. #}
+      serve \
       {% for arg in ollama_process_extra_arguments %}
       {{ arg }} \
       {% endfor %}
+      {% endif %}
 
 {% for network in ollama_container_additional_networks %}
 ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} network connect {{ network }} {{ ollama_identifier }}
