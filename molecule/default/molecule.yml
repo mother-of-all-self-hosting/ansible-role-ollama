@@ -59,6 +59,9 @@ provisioner:
         ollama_uid: 1000
         ollama_gid: 1000
         ollama_container_http_host_bind_port: "{{ ollama_molecule_http_bind_port }}"
+        # Deliberately not the image's own default (11434), so that Ollama
+        # answering at all proves that the role passed the port to the process.
+        ollama_container_http_port: 11435
   env:
     # Workaround for https://github.com/ansible/molecule/issues/4391
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles

@@ -88,6 +88,12 @@ ollama_container_group_add_custom:
   - 991
 ```
 
+Ollama also leaves out integrated GPUs, such as the ones built into most Intel processors, except for a few which it allows by default. To run models on one, add the following configuration to your `vars.yml` file as well:
+
+```yaml
+ollama_environment_variables_ollama_igpu_enable: true
+```
+
 ### Extending the configuration
 
 There are some additional things you may wish to configure about the service.

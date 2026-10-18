@@ -90,7 +90,8 @@
         # starts. Finding the scenario's keep-alive there, rather than Ollama's
         # own default, is what proves that the role's environment file reached
         # the process. The models directory shows that the home directory the
-        # role sets is the one Ollama uses.
+        # role sets is the one Ollama uses. Ollama reads OLLAMA_IGPU_ENABLE as a
+        # string, so it has to arrive empty rather than as `false`.
         - name: Retrieve the Ollama systemd service log
           ansible.builtin.command:
             cmd: journalctl --no-pager --output=cat --unit=ollama.service
@@ -106,7 +107,8 @@
             that:
               - "'OLLAMA_KEEP_ALIVE:' ~ ollama_molecule_keep_alive_logged ~ ' ' in ollama_server_config"
               - "'OLLAMA_MODELS:' ~ ollama_defaults.ollama_environment_variables_home ~ '/.ollama/models ' in ollama_server_config"
-              - "'OLLAMA_HOST:http://0.0.0.0:' ~ ollama_defaults.ollama_container_http_port ~ ' ' in ollama_server_config"
+              - "'OLLAMA_HOST:http://0.0.0.0:' ~ ollama_container_http_port ~ ' ' in ollama_server_config"
+              - "'OLLAMA_IGPU_ENABLE: ' in ollama_server_config"
             fail_msg: "Ollama started with {{ ollama_server_config | default('no logged configuration', true) }}"
             success_msg: >-
               Ollama runs with OLLAMA_KEEP_ALIVE={{ ollama_environment_variables_ollama_keep_alive }}

@@ -375,6 +375,10 @@ ollama_environment_variables_ollama_num_parallel: ""
 # Ollama picks a number based on the available memory when this is empty.
 ollama_environment_variables_ollama_max_loaded_models: ""
 
+# Control whether Ollama also runs models on integrated GPUs (such as the ones built into most Intel processors).
+# When this is false, Ollama leaves out integrated GPUs except for a few which it allows by default.
+ollama_environment_variables_ollama_igpu_enable: false
+
 # Control whether Ollama's cloud features (running models on ollama.com and web search) are disabled
 ollama_environment_variables_ollama_no_cloud: false
 

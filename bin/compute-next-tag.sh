@@ -10,7 +10,7 @@
 #
 # Tags look like `v<Ollama version>-<release>`:
 #
-# - if defaults/main.yml points at a Ollama version that has never been
+# - if defaults/main.yml points at an Ollama version that has never been
 #   released, the release counter restarts at 0 (`v0.23.1-0`)
 # - otherwise the counter is incremented (`v0.23.1-1`), but only if something
 #   that actually affects the role has changed since the last release
