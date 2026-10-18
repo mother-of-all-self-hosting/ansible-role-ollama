@@ -1,0 +1,373 @@
+# SPDX-FileCopyrightText: 2023, 2024 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023-2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Julian-Samuel Gebühr
+# SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
+# SPDX-FileCopyrightText: 2024 noah
+# SPDX-FileCopyrightText: 2025 MASH project contributors
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# Project source code URL: https://github.com/ollama/ollama
+
+ollama_enabled: true
+
+ollama_identifier: ollama
+ollama_base_path: "/{{ ollama_identifier }}"
+ollama_data_path: "{{ ollama_base_path }}/data"
+
+# renovate: datasource=docker depName=ollama/ollama versioning=semver
+ollama_version: 0.40.6
+
+ollama_uid: ""
+ollama_gid: ""
+
+# The scheme used for serving Ollama.
+ollama_scheme: https
+
+# The hostname at which Ollama is served.
+ollama_hostname: ""
+
+# The path at which Ollama is served.
+# Ollama does not support hosting under a subpath, so this value must be `/`.
+ollama_path_prefix: /
+
+# Controls how to configure the container for hardware acceleration.
+#
+# One of: cpu, cuda, rocm
+# Ref: https://docs.ollama.com/docker
+ollama_hardware_acceleration: cpu
+
+# For AMD GPUs (ROCm), `-rocm` needs to be added to the image tag.
+# The default image supports both CPUs and NVIDIA GPUs (CUDA).
+ollama_version_hardware_acceleration_suffix: |-
+  {{
+    {
+      'cpu': '',
+      'cuda': '',
+      'rocm': '-rocm',
+    }[ollama_hardware_acceleration]
+  }}
+
+ollama_container_image: "{{ ollama_container_image_registry_prefix }}ollama/ollama:{{ ollama_container_image_tag }}"
+ollama_container_image_tag: "{{ ollama_version }}{{ ollama_version_hardware_acceleration_suffix }}"
+ollama_container_image_registry_prefix: "{{ ollama_container_image_registry_prefix_upstream }}"
+ollama_container_image_registry_prefix_upstream: "{{ ollama_container_image_registry_prefix_upstream_default }}"
+ollama_container_image_registry_prefix_upstream_default: docker.io/
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+ollama_container_network: "{{ ollama_identifier }}"
+
+# Control if the container network is deleted on uninstalling.
+ollama_container_network_deletion_enabled: true
+
+# Specify how the container publishes its HTTP port (as defined by `ollama_container_http_port`).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:2586"), or empty string to not expose.
+ollama_container_http_host_bind_port: ""
+
+# The port number in the container
+ollama_container_http_port: 11434
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+ollama_container_additional_networks: "{{ ollama_container_additional_networks_auto + ollama_container_additional_networks_custom }}"
+ollama_container_additional_networks_auto: []
+ollama_container_additional_networks_custom: []
+
+# A list of additional "volumes" to mount in the container.
+# This list gets populated dynamically at runtime. You can provide a different default value,
+# if you wish to mount your own files into the container.
+# Contains definition objects like this: `{"type": "bind", "src": "/outside", "dst": "/inside", "options": "readonly"}.
+# See the `--mount` documentation for the `docker run` command.
+ollama_container_additional_volumes: "{{ ollama_container_additional_volumes_auto + ollama_container_additional_volumes_custom }}"
+ollama_container_additional_volumes_auto: []
+ollama_container_additional_volumes_custom: []
+
+# A list of additional "devices" to attach to the container.
+# Contains definition objects like this: `{"src": "/dev/kfd", "dst": "/dev/kfd", "options": "rwm"}`.
+# See the `--device` documentation for the `docker run` command.
+ollama_container_devices: "{{ ollama_container_devices_default + ollama_container_devices_auto + ollama_container_devices_custom }}"
+
+# Ref: https://docs.ollama.com/docker
+ollama_container_devices_default: |-
+  {{
+    {
+      'cpu': ollama_container_devices_default_cpu,
+      'cuda': ollama_container_devices_default_cuda,
+      'rocm': ollama_container_devices_default_rocm,
+    }[ollama_hardware_acceleration]
+  }}
+
+ollama_container_devices_default_cpu: []
+
+ollama_container_devices_default_cuda: []
+
+ollama_container_devices_default_rocm: |-
+  {{
+    (
+      [
+        {
+          'src': ollama_container_devices_default_rocm_kfd_path,
+          'dst': ollama_container_devices_default_rocm_kfd_path,
+          'options': 'rwm'
+        }
+      ]
+      if ollama_container_devices_default_rocm_kfd_enabled
+      else []
+    )
+    +
+    (
+      [
+        {
+          'src': ollama_container_devices_default_rocm_dri_path,
+          'dst': ollama_container_devices_default_rocm_dri_path,
+          'options': 'rwm'
+        }
+      ]
+      if ollama_container_devices_default_rocm_dri_enabled
+      else []
+    )
+  }}
+ollama_container_devices_default_rocm_kfd_enabled: true
+ollama_container_devices_default_rocm_kfd_path: /dev/kfd
+ollama_container_devices_default_rocm_dri_enabled: true
+ollama_container_devices_default_rocm_dri_path: /dev/dri
+
+ollama_container_devices_auto: []
+ollama_container_devices_custom: []
+
+# A list of GPUs to pass to the container.
+# Contains strings like this: `"device=0"` or `"all"`.
+# See the `--gpus` documentation for the `docker run` command.
+ollama_container_gpus: "{{ (ollama_container_gpus_default + ollama_container_gpus_auto + ollama_container_gpus_custom) | unique }}"
+
+# Ref: https://docs.ollama.com/docker
+ollama_container_gpus_default: |-
+  {{
+    {
+      'cpu': ollama_container_gpus_default_cpu,
+      'cuda': ollama_container_gpus_default_cuda,
+      'rocm': ollama_container_gpus_default_rocm,
+    }[ollama_hardware_acceleration]
+  }}
+
+ollama_container_gpus_default_cpu: []
+
+ollama_container_gpus_default_cuda: ["all"]
+
+ollama_container_gpus_default_rocm: []
+
+ollama_container_gpus_auto: []
+ollama_container_gpus_custom: []
+
+# A list of groups to add the container to (`--group-add`).
+# Contains strings like this: `"video"`.
+# As the container does not run as root, it may need to be added to the group which owns the GPU devices
+# on the host (e.g. the numeric ID of the host's `render` group for ROCm).
+# See the `--group-add` documentation for the `docker run` command.
+ollama_container_group_add: "{{ (ollama_container_group_add_auto + ollama_container_group_add_custom) | unique }}"
+ollama_container_group_add_auto: []
+ollama_container_group_add_custom: []
+
+# ollama_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `ollama_container_labels_additional_labels_custom`.
+ollama_container_labels_traefik_enabled: false
+ollama_container_labels_traefik_docker_network: "{{ ollama_container_network }}"
+ollama_container_labels_traefik_hostname: "{{ ollama_hostname }}"
+# The path prefix must either be `/` or not end with a slash (e.g. `/ollama`).
+ollama_container_labels_traefik_path_prefix: "{{ ollama_path_prefix }}"
+ollama_container_labels_traefik_rule: "Host(`{{ ollama_container_labels_traefik_hostname }}`)"
+ollama_container_labels_traefik_priority: 0
+ollama_container_labels_traefik_entrypoints: web-secure
+ollama_container_labels_traefik_tls: "{{ ollama_container_labels_traefik_entrypoints != 'web' }}"
+ollama_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+ollama_container_labels_traefik_middleware_basic_auth_enabled: false
+# See: https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/basicauth/
+ollama_container_labels_traefik_middleware_basic_auth_users: ""
+
+# Controls whether a compression middleware will be injected into the middlewares list.
+# This compression middleware is supposed to be defined elsewhere (using labels or a File provider, etc.) and is merely referenced by this router.
+ollama_container_labels_traefik_compression_middleware_enabled: false
+ollama_container_labels_traefik_compression_middleware_name: ""
+
+# Controls which additional headers to attach to all HTTP requests.
+# To add your own custom request headers, use `ollama_container_labels_traefik_additional_request_headers_custom`
+ollama_container_labels_traefik_additional_request_headers: "{{ ollama_container_labels_traefik_additional_request_headers_auto | combine(ollama_container_labels_traefik_additional_request_headers_custom) }}"
+ollama_container_labels_traefik_additional_request_headers_auto: {}
+ollama_container_labels_traefik_additional_request_headers_custom: {}
+
+# Controls which additional headers to attach to all HTTP responses.
+# To add your own custom response headers, use `ollama_container_labels_traefik_additional_response_headers_custom`
+ollama_container_labels_traefik_additional_response_headers: "{{ ollama_container_labels_traefik_additional_response_headers_auto | combine(ollama_container_labels_traefik_additional_response_headers_custom) }}"
+ollama_container_labels_traefik_additional_response_headers_auto: |
+  {{
+    {}
+    | combine ({'X-XSS-Protection': ollama_http_header_xss_protection} if ollama_http_header_xss_protection else {})
+    | combine ({'X-Content-Type-Options': ollama_http_header_content_type_options} if ollama_http_header_content_type_options else {})
+    | combine ({'Content-Security-Policy': ollama_http_header_content_security_policy} if ollama_http_header_content_security_policy else {})
+    | combine ({'Permissions-Policy': ollama_http_header_permissions_policy} if ollama_http_header_permissions_policy else {})
+    | combine ({'Strict-Transport-Security': ollama_http_header_strict_transport_security} if ollama_http_header_strict_transport_security and ollama_container_labels_traefik_tls else {})
+  }}
+ollama_container_labels_traefik_additional_response_headers_custom: {'X-Clacks-Overhead': GNU Terry Pratchett}
+
+# ollama_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+# To add your own custom labels, use `ollama_container_labels_additional_labels_custom`
+#
+# Example:
+# ollama_container_labels_additional_labels_custom:
+#   - my.label=1
+#   - another.label="here"
+ollama_container_labels_additional_labels: "{{ ollama_container_labels_additional_labels_auto + ollama_container_labels_additional_labels_custom }}"
+ollama_container_labels_additional_labels_auto: []
+ollama_container_labels_additional_labels_custom: []
+
+# A list of extra arguments to pass to the container (`docker create` command)
+ollama_container_extra_arguments: "{{ ollama_container_extra_arguments_auto + ollama_container_extra_arguments_custom }}"
+ollama_container_extra_arguments_auto: []
+ollama_container_extra_arguments_custom: []
+
+# A list of extra arguments to pass to the process inside the container
+# Example: ['--SOME_ARGUMENT']
+ollama_process_extra_arguments: "{{ ollama_process_extra_arguments_auto + ollama_process_extra_arguments_custom }}"
+ollama_process_extra_arguments_auto: []
+ollama_process_extra_arguments_custom: []
+
+# Specifies the value of the `X-XSS-Protection` header
+# Stops pages from loading when they detect reflected cross-site scripting (XSS) attacks.
+#
+# Learn more about it is here:
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection
+# - https://portswigger.net/web-security/cross-site-scripting/reflected
+ollama_http_header_xss_protection: "1; mode=block"
+
+# Specifies the value of the `X-Content-Type-Options` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
+ollama_http_header_content_type_options: nosniff
+
+# Specifies the value of the `Content-Security-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
+ollama_http_header_content_security_policy: frame-ancestors 'self'
+
+# Specifies the value of the `Permissions-Policy` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy
+ollama_http_header_permissions_policy: "{{ 'interest-cohort=()' if ollama_floc_optout_enabled else '' }}"
+
+# Specifies the value of the `Strict-Transport-Security` header.
+# See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+ollama_http_header_strict_transport_security: "max-age=31536000; includeSubDomains{{ '; preload' if ollama_hsts_preload_enabled else '' }}"
+
+# Controls whether to send a "Permissions-Policy interest-cohort=();" header along with all responses
+#
+# Learn more about what it is here:
+# - https://www.eff.org/deeplinks/2021/03/googles-floc-terrible-idea
+# - https://paramdeo.com/blog/opting-your-website-out-of-googles-floc-network
+# - https://amifloced.org/
+#
+# Of course, a better solution is to just stop using browsers (like Chrome), which participate in such tracking practices.
+# See: `ollama_http_header_permissions_policy`
+ollama_floc_optout_enabled: true
+
+# Controls if HSTS preloading is enabled
+#
+# In its strongest and recommended form, the [HSTS policy](https://www.chromium.org/hsts) includes all subdomains, and
+# indicates a willingness to be "preloaded" into browsers:
+# `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
+# For more information visit:
+# - https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+# - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+# - https://hstspreload.org/#opt-in
+# See: `ollama_http_header_strict_transport_security`
+ollama_hsts_preload_enabled: false
+
+# List of systemd services that the Ollama systemd service depends on
+ollama_systemd_required_services_list: "{{ ollama_systemd_required_services_list_default + ollama_systemd_required_services_list_auto + ollama_systemd_required_services_list_custom }}"
+ollama_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+ollama_systemd_required_services_list_auto: []
+ollama_systemd_required_services_list_custom: []
+
+# List of systemd services that the Ollama systemd service wants
+ollama_systemd_wanted_services_list: "{{ ollama_systemd_wanted_services_list_default + ollama_systemd_wanted_services_list_auto + ollama_systemd_wanted_services_list_custom }}"
+ollama_systemd_wanted_services_list_default: []
+ollama_systemd_wanted_services_list_auto: []
+ollama_systemd_wanted_services_list_custom: []
+
+# Controls how long to wait for the container to stop gracefully before killing it.
+ollama_container_stop_grace_time_seconds: "{{ devture_systemd_docker_base_container_stop_grace_time_seconds }}"
+
+# Controls how long the pre-start cleanup should wait for stale container-name release
+# before failing startup explicitly.
+ollama_container_cleanup_timeout_seconds: "{{ devture_systemd_docker_base_container_cleanup_timeout_seconds }}"
+
+# Controls the delay between pre-start cleanup retries.
+ollama_container_cleanup_retry_delay_seconds: "{{ devture_systemd_docker_base_container_cleanup_retry_delay_seconds }}"
+
+# Shell command used in the systemd pre-start phase to deterministically remove a stale
+# container and wait until Docker releases its name.
+ollama_container_cleanup_command: |
+  i=0;
+  while [ "$i" -lt {{ ollama_container_cleanup_timeout_seconds }} ]; do
+  {{ devture_systemd_docker_base_host_command_docker }} stop -t {{ ollama_container_stop_grace_time_seconds }} {{ ollama_identifier }} >/dev/null 2>&1 || true;
+  {{ devture_systemd_docker_base_host_command_docker }} rm -f {{ ollama_identifier }} >/dev/null 2>&1 || true;
+  if {{ devture_systemd_docker_base_host_command_docker }} container inspect {{ ollama_identifier }} >/dev/null 2>&1; then
+  i=$((i + 1));
+  sleep {{ ollama_container_cleanup_retry_delay_seconds }};
+  continue;
+  fi;
+  if {{ devture_systemd_docker_base_host_command_docker }} info >/dev/null 2>&1; then
+  exit 0;
+  fi;
+  echo "Failed to query Docker daemon while cleaning up {{ ollama_identifier }}" >&2;
+  exit 1;
+  done;
+  echo "Failed to remove stale container {{ ollama_identifier }} after {{ ollama_container_cleanup_timeout_seconds }} attempts" >&2;
+  exit 1
+
+# Specifies the home directory of the Ollama process.
+#
+# Ollama keeps its key pair and the models it downloads in `.ollama` below its home directory,
+# which is where this role mounts `ollama_data_path`. Neither of the home directories the container
+# would otherwise end up with (`/root`, or `/` for a uid without an `/etc/passwd` entry in the image)
+# is writable under the container's read-only root filesystem.
+ollama_environment_variables_home: /ollama
+
+# Specify how long models stay loaded in memory after a request (e.g. `5m`, `1h`, or `-1` to keep them loaded).
+# Ollama's own default is used when this is empty.
+ollama_environment_variables_ollama_keep_alive: ""
+
+# Specify the context length used unless a request asks for another one.
+# Ollama picks one based on the available memory of the GPUs when this is empty.
+ollama_environment_variables_ollama_context_length: ""
+
+# Specify how many requests each model handles in parallel.
+# Ollama's own default is used when this is empty.
+ollama_environment_variables_ollama_num_parallel: ""
+
+# Specify how many models can be loaded at the same time.
+# Ollama picks a number based on the available memory when this is empty.
+ollama_environment_variables_ollama_max_loaded_models: ""
+
+# Control whether Ollama's cloud features (running models on ollama.com and web search) are disabled
+ollama_environment_variables_ollama_no_cloud: false
+
+# Control whether additional debug information is logged
+ollama_environment_variables_ollama_debug: false
+
+# Additional environment variables.
+ollama_environment_variables_additional_variables: ""
+
+# ollama_restart_necessary controls whether the Ollama systemd
+# service will be restarted (when true) or merely started (when false) by the
+# systemd service manager role (when conditional restart is enabled).
+#
+# This value is automatically computed during installation based on whether
+# any configuration files, the systemd service file, or the container image changed.
+# The default of `false` means "no restart needed" — appropriate when the role's
+# installation tasks haven't run (e.g., due to --tags skipping them).
+ollama_restart_necessary: false

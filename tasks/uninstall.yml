@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 noah
+# SPDX-FileCopyrightText: 2025 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Check existence of Ollama systemd service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ ollama_identifier }}.service"
+  register: ollama_service_stat
+
+- name: Uninstall Ollama systemd services and files
+  when: ollama_service_stat.stat.exists | bool
+  block:
+    - name: Ensure Ollama systemd service is stopped
+      ansible.builtin.service:
+        name: "{{ ollama_identifier }}"
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure Ollama systemd service does not exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/{{ ollama_identifier }}.service"
+        state: absent
+
+    - name: Ensure Ollama support files do not exist
+      ansible.builtin.file:
+        path: "{{ ollama_base_path }}/{{ item }}"
+        state: absent
+      with_items:
+        - env
+        - labels
+
+    - name: Ensure Ollama local data path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ ollama_data_path }}"
+      register: ollama_data_path_deletion_result
+      changed_when: ollama_data_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure Ollama base path does not exist if empty
+      ansible.builtin.command:
+        cmd: "rmdir {{ ollama_base_path }}"
+      register: ollama_base_path_deletion_result
+      changed_when: ollama_base_path_deletion_result.rc == 0
+      failed_when: false
+
+    - name: Ensure Ollama container network does not exist
+      when: ollama_container_network_deletion_enabled
+      block:
+        - name: Ensure Ollama container network does not exist via community.docker.docker_network
+          when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+          community.docker.docker_network:
+            name: "{{ ollama_container_network }}"
+            state: absent
+          register: ollama_network_deletion_result
+
+        - name: Ensure Ollama container network does not exist via ansible.builtin.command
+          when: devture_systemd_docker_base_container_network_creation_method == 'command'
+          ansible.builtin.command:
+            cmd: >-
+              {{ devture_systemd_docker_base_host_command_docker }} network rm
+              {{ ollama_container_network }}
+          register: ollama_network_deletion_result
+          changed_when: ollama_container_network in ollama_network_deletion_result.stdout
+
+- name: Check existence of Ollama local data path
+  ansible.builtin.stat:
+    path: "{{ ollama_data_path }}"
+  register: ollama_data_path_stat
+
+# We just want to notify the user. Deleting data is too destructive.
+- name: Inject the message about the remaining Ollama local data path
+  when: ollama_data_path_stat.stat.exists | bool
+  ansible.builtin.set_fact:
+    devture_playbook_runtime_messages_list: |
+      {{
+        devture_playbook_runtime_messages_list | default([])
+        +
+        [
+          "Note: As the local Ollama instance has been removed, some old data remains in `" + ollama_data_path + "`. Feel free to delete it."
+        ]
+      }}

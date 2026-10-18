@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 noah
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Perform Ollama installation tasks
+  when: ollama_enabled | bool
+  tags:
+    - setup-all
+    - setup-ollama
+    - install-all
+    - install-ollama
+  block:
+    - name: Validate Ollama configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+    - name: Install Ollama
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- name: Perform Ollama uninstallation tasks
+  when: not ollama_enabled | bool
+  tags:
+    - setup-all
+    - setup-ollama
+  block:
+    - name: Uninstall Ollama
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"
