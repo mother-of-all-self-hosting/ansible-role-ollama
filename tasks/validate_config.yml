@@ -24,8 +24,8 @@
 - name: Fail if Ollama hardware acceleration is invalid
   ansible.builtin.fail:
     msg: >-
-      ollama_hardware_acceleration must be 'cpu', 'cuda', or 'rocm'
-  when: "ollama_hardware_acceleration not in ['cpu', 'cuda', 'rocm']"
+      ollama_hardware_acceleration must be 'cpu', 'cuda', 'rocm', or 'vulkan'
+  when: "ollama_hardware_acceleration not in ['cpu', 'cuda', 'rocm', 'vulkan']"
 
 - name: Run if Traefik is enabled
   when: ollama_container_labels_traefik_enabled | bool

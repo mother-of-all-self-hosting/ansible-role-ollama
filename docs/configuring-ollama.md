@@ -75,13 +75,18 @@ After adjusting the hostname, make sure to adjust your DNS records to point the 
 By default, Ollama runs models on the CPU. To run them on a GPU, add the following configuration to your `vars.yml` file:
 
 ```yaml
-# Valid values: cpu, cuda, rocm
+# Valid values: cpu, cuda, rocm, vulkan
 ollama_hardware_acceleration: cuda
 ```
 
-Set `cuda` for NVIDIA GPUs, which requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the server. Set `rocm` for AMD GPUs.
+Set `cuda` for NVIDIA GPUs, which requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the server. Set `rocm` for AMD GPUs, and `vulkan` for Intel GPUs and other GPUs with Vulkan support.
 
-As the container does not run as `root`, it may also need to be added to the group which owns the GPU devices on the server (e.g. `render`). To do so, add the group's numeric ID to `ollama_container_group_add_custom`.
+As the container does not run as `root`, it also needs to be added to the group which owns the GPU devices on the server for `rocm` and `vulkan`. Otherwise Ollama runs models on the CPU without reporting an error. To do so, add the numeric ID of the group (usually `render`, see `getent group render`) to your `vars.yml` file as below:
+
+```yaml
+ollama_container_group_add_custom:
+  - 991
+```
 
 ### Extending the configuration
 

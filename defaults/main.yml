@@ -36,18 +36,19 @@ ollama_path_prefix: /
 
 # Controls how to configure the container for hardware acceleration.
 #
-# One of: cpu, cuda, rocm
+# One of: cpu, cuda, rocm, vulkan
 # Ref: https://docs.ollama.com/docker
 ollama_hardware_acceleration: cpu
 
 # For AMD GPUs (ROCm), `-rocm` needs to be added to the image tag.
-# The default image supports both CPUs and NVIDIA GPUs (CUDA).
+# The default image supports CPUs, NVIDIA GPUs (CUDA) and GPUs with Vulkan support.
 ollama_version_hardware_acceleration_suffix: |-
   {{
     {
       'cpu': '',
       'cuda': '',
       'rocm': '-rocm',
+      'vulkan': '',
     }[ollama_hardware_acceleration]
   }}
 
@@ -99,6 +100,7 @@ ollama_container_devices_default: |-
       'cpu': ollama_container_devices_default_cpu,
       'cuda': ollama_container_devices_default_cuda,
       'rocm': ollama_container_devices_default_rocm,
+      'vulkan': ollama_container_devices_default_vulkan,
     }[ollama_hardware_acceleration]
   }}
 
@@ -137,6 +139,23 @@ ollama_container_devices_default_rocm_kfd_path: /dev/kfd
 ollama_container_devices_default_rocm_dri_enabled: true
 ollama_container_devices_default_rocm_dri_path: /dev/dri
 
+ollama_container_devices_default_vulkan: |-
+  {{
+    (
+      [
+        {
+          'src': ollama_container_devices_default_vulkan_dri_path,
+          'dst': ollama_container_devices_default_vulkan_dri_path,
+          'options': 'rwm'
+        }
+      ]
+      if ollama_container_devices_default_vulkan_dri_enabled
+      else []
+    )
+  }}
+ollama_container_devices_default_vulkan_dri_enabled: true
+ollama_container_devices_default_vulkan_dri_path: /dev/dri
+
 ollama_container_devices_auto: []
 ollama_container_devices_custom: []
 
@@ -152,6 +171,7 @@ ollama_container_gpus_default: |-
       'cpu': ollama_container_gpus_default_cpu,
       'cuda': ollama_container_gpus_default_cuda,
       'rocm': ollama_container_gpus_default_rocm,
+      'vulkan': ollama_container_gpus_default_vulkan,
     }[ollama_hardware_acceleration]
   }}
 
@@ -161,13 +181,15 @@ ollama_container_gpus_default_cuda: ["all"]
 
 ollama_container_gpus_default_rocm: []
 
+ollama_container_gpus_default_vulkan: []
+
 ollama_container_gpus_auto: []
 ollama_container_gpus_custom: []
 
 # A list of groups to add the container to (`--group-add`).
 # Contains strings like this: `"video"`.
 # As the container does not run as root, it may need to be added to the group which owns the GPU devices
-# on the host (e.g. the numeric ID of the host's `render` group for ROCm).
+# on the host (e.g. the numeric ID of the host's `render` group for ROCm and Vulkan).
 # See the `--group-add` documentation for the `docker run` command.
 ollama_container_group_add: "{{ (ollama_container_group_add_auto + ollama_container_group_add_custom) | unique }}"
 ollama_container_group_add_auto: []
