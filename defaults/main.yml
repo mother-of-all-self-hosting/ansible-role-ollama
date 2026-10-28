@@ -19,7 +19,7 @@ ollama_base_path: "/{{ ollama_identifier }}"
 ollama_data_path: "{{ ollama_base_path }}/data"
 
 # renovate: datasource=docker depName=ollama/ollama versioning=semver
-ollama_version: 0.40.11
+ollama_version: 0.40.12
 
 ollama_uid: ""
 ollama_gid: ""
