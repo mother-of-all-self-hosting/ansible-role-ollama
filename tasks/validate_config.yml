@@ -16,7 +16,6 @@
   with_items:
     - ollama_uid
     - ollama_gid
-    - ollama_container_network
     # An empty value here would put a bare `HOME=` into the environment file, leaving Ollama
     # without a writable home directory for its key pair and models.
     - ollama_environment_variables_home
